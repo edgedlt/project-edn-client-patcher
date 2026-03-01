@@ -19,6 +19,7 @@ bool Interface::HandleInput()
 	if (GetAsyncKeyState(VK_F6) & 1)
 	{
 		Unload();
+		return false;
 	}
 	else if (GetAsyncKeyState(VK_F7) & 1)
 	{
@@ -32,8 +33,8 @@ bool Interface::HandleInput()
 	{
 		//GPacketSender.SendCConnectClient(GPacketSender.pThis, &packet);
 	}
-	else
-		return true;
+
+	return true;
 }
 
 void DuplicateToConsole(void* user_data, const loguru::Message& message)
