@@ -12,6 +12,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_PROCESS_ATTACH:
 	{
 		CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)EdnGfThread, hModule, 0, nullptr));
+		break;
 	}
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:

@@ -96,7 +96,7 @@ void HookDispatchWndMsg(uintptr_t moduleBase)
 	uintptr_t pDispatchWndMsg = moduleBase + 0x108ef8;
 
 	// Initialize the hook and memory addresses
-	wndHook = &IATHook(&g_pFace->con);
+	wndHook = new IATHook(&g_pFace->con);
 	wndHook->Init((HMODULE)moduleBase, &hDispatchWndMsg, pDispatchWndMsg);
 
 	// Save the original function
@@ -120,7 +120,7 @@ void HookAddEventInternal(uintptr_t moduleBase)
 	uintptr_t pAddEventInternal = moduleBase + 0x136324;
 
 	// Initialize the hook and memory addresses
-	eventHook = &IATHook(&g_pFace->con);
+	eventHook = new IATHook(&g_pFace->con);
 	eventHook->Init((HMODULE)moduleBase, &hAddEventInternal, pAddEventInternal);
 
 	// Save the original function

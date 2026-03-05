@@ -125,7 +125,7 @@ void HookOnPacket(uintptr_t moduleBase)
 	uintptr_t pOnPacket = moduleBase + 0x16b9ac;
 
 	// Initialize the hook and memory addresses
-	packetHook = &IATHook(&g_pFace->con);
+	packetHook = new IATHook(&g_pFace->con);
 	packetHook->Init((HMODULE)moduleBase, &hOnPacket, pOnPacket);
 
 	// Save the original function

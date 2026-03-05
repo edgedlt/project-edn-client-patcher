@@ -18,16 +18,21 @@ DWORD WINAPI EdnGfThread(HMODULE hModule)
 	// Activate UI
 	Interface ui = Interface();
 
-	// Get module base
+	// Wait for GF.dll to be loaded
 	uintptr_t moduleBase = (uintptr_t)GetModuleHandle(L"GF.dll");
+	while (moduleBase == NULL) {
+		Sleep(5);
+		moduleBase = (uintptr_t)GetModuleHandle(L"GF.dll");
+	}
+
+	// Give GF.dll time to finish initialization before we touch its internals
+	Sleep(500);
 
 	// Get the packet sender
 	LoadPacketSender(moduleBase);
 
-	// Get module for nwindow
+	// Wait for NWindow.dll to be loaded
 	uintptr_t nwin = (uintptr_t)GetModuleHandle(L"NWindow.dll");
-
-	// Wait until its loaded
 	while (nwin == NULL) {
 		Sleep(5);
 		nwin = (uintptr_t)GetModuleHandle(L"NWindow.dll");
