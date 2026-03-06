@@ -5,13 +5,16 @@
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
-                     )
+                     ) noexcept
 {
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
 	{
-		CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)EdnGfThread, hModule, 0, nullptr));
+		HANDLE threadHandle = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)EdnGfThread, hModule, 0, nullptr);
+		if (threadHandle != NULL) {
+			CloseHandle(threadHandle);
+		}
 		break;
 	}
     case DLL_THREAD_ATTACH:
@@ -23,7 +26,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 }
 
 // Dummy export to allow us to add this DLL to the PE of the target dll
-__declspec(dllexport) int APIENTRY Func(LPVOID lpParam)
+__declspec(dllexport) int APIENTRY Func(LPVOID lpParam) noexcept
 {
 	return 0;
 }

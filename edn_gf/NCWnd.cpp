@@ -5,16 +5,7 @@
 #include "FPacketSender.h"
 
 // Original function
-_DispatchWndMsg oDispatchWndMsg;
-
-// Original function
 _AddEventInternal oAddEventInternal;
-
-// Callback
-_DispatchWndMsgCallback DispatchWndMsgCallback;
-
-// Hook
-IATHook * wndHook;
 
 // Hook
 IATHook * eventHook;
@@ -22,31 +13,13 @@ IATHook * eventHook;
 // Module base
 uintptr_t nwindowModule;
 
-// Find child function
-NCWnd::_FindChildControl NCWnd::FindChildControl;
-
-// Injected function
-UINT __fastcall hDispatchWndMsg(void *that, void *Unknown, UINT param1, UINT param2, LONG param3)
-{
-	// Check that callback 
-	if (DispatchWndMsgCallback) 
-	{
-		bool cont = DispatchWndMsgCallback(param1, param2);
-		if (!cont)
-			return 1;
-	}
-
-	return oDispatchWndMsg(that, param1, param2, param3);
-}
-
-// Injected function
+// Hooked AddEventInternal -- intercepts UI events from NWindow.dll.
 void __cdecl hAddEventInternal(float curTime, int eventId, int param_3, void * param_4, char * param_5, int param_6)
 {
 	// Log if available
-	// TODO: Debug UI with status view
 	if (g_pFace)
 	{
-		LOG_F(1, "Add event internal: [%f] [%d] [%d] [%d] [%d] [%d]\n", curTime, eventId, param_3, param_4, param_5, param_6);
+		DLOG_F(1, "Add event internal: [%f] [%d] [%d] [%d] [%d] [%d]\n", curTime, eventId, param_3, param_4, param_5, param_6);
 	}
 
 	// Login event
@@ -57,7 +30,7 @@ void __cdecl hAddEventInternal(float curTime, int eventId, int param_3, void * p
 
 		// Find the user name and pass
 		wchar_t* user = *(wchar_t**)(*dataAddr + 0x38);
-		LOG_F(1, "Login request: %s\n", user);
+		DLOG_F(1, "Login request: %s\n", user);
 
 		wchar_t* pass = *(wchar_t**)(*dataAddr + 0x50);
 
@@ -84,42 +57,18 @@ void __cdecl hAddEventInternal(float curTime, int eventId, int param_3, void * p
 	return oAddEventInternal(curTime, eventId, param_3, param_4, param_5, param_6);
 }
 
-// Perfoms a hook to UGFBoss::SetState
-void HookDispatchWndMsg(uintptr_t moduleBase)
-{
-	// Console info
-	LOG_F(INFO, "[===================================================================]\n");
-	LOG_F(INFO, "Hooking into UGFBoss::SetState...\n");
-	LOG_F(INFO, "[===================================================================]\n");
-
-	// Pointer to vtable entry
-	uintptr_t pDispatchWndMsg = moduleBase + 0x108ef8;
-
-	// Initialize the hook and memory addresses
-	wndHook = new IATHook(&g_pFace->con);
-	wndHook->Init((HMODULE)moduleBase, &hDispatchWndMsg, pDispatchWndMsg);
-
-	// Save the original function
-	oDispatchWndMsg = (_DispatchWndMsg)wndHook->GetOriginalFunction();
-
-	// Activate the hook
-	wndHook->Hook();
-
-	// Setup calls
-	NCWnd::FindChildControl = (NCWnd::_FindChildControl)(moduleBase + 0x38cb0);
-
-	// Console info
-	LOG_F(INFO, "[===================================================================]\n");
-	LOG_F(INFO, "Done!\n");
-	LOG_F(INFO, "[===================================================================]\n");
-}
-
-void HookAddEventInternal(uintptr_t moduleBase) 
+// Hooks NWindow.dll AddEventInternal to intercept login events.
+void HookAddEventInternal(uintptr_t moduleBase)
 {
 	// Pointer to vtable entry
 	uintptr_t pAddEventInternal = moduleBase + 0x136324;
 
 	// Initialize the hook and memory addresses
+	if (eventHook) {
+		eventHook->Unload();
+		delete eventHook;
+		eventHook = NULL;
+	}
 	eventHook = new IATHook(&g_pFace->con);
 	eventHook->Init((HMODULE)moduleBase, &hAddEventInternal, pAddEventInternal);
 
@@ -134,12 +83,11 @@ void HookAddEventInternal(uintptr_t moduleBase)
 }
 
 // Cleanup
-void UnHookDispatchWndMsg()
-{
-	wndHook->Unload();
-}
-
 void UnHookAddEventInternal()
 {
-	eventHook->Unload();
+	if (eventHook) {
+		eventHook->Unload();
+		delete eventHook;
+		eventHook = NULL;
+	}
 }

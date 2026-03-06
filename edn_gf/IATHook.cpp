@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "Memory.h"
+#include "IATHook.h"
 #include "loguru.hpp"
 
 IATHook::IATHook(Console * con)
@@ -17,7 +17,7 @@ IATHook::IATHook(HMODULE hModule, void * pHook, char * sSymbol)
 	Init(hModule, pHook, sSymbol);
 }
 
-IATHook::~IATHook()
+IATHook::~IATHook() noexcept
 {
 	Unload();
 }
@@ -35,11 +35,11 @@ void IATHook::Init(char * sModule, void * pHook, char * sSymbol)
 	this->sSymbol = sSymbol;
 	pFunctionPtr = (uintptr_t)FindInIAT(sSymbol, this->hModule, con);
 	if (!pFunctionPtr) {
-		LOG_F(INFO, "Cound not find function %s\n", sSymbol);
+		DLOG_F(INFO, "could not find function %s", sSymbol);
 	}
 	else {
 		pOldFunc = *(uintptr_t*)pFunctionPtr;
-		LOG_F(INFO, "Found %s at $p\n", sSymbol, pFunctionPtr);
+		DLOG_F(INFO, "found %s at %p", sSymbol, pFunctionPtr);
 	}
 }
 
@@ -50,11 +50,11 @@ void IATHook::Init(HMODULE hModule, void * pHook, char * sSymbol)
 	this->sSymbol = sSymbol;
 	pFunctionPtr = (uintptr_t)FindInIAT(sSymbol, this->hModule, con);
 	if (!pFunctionPtr) {
-		LOG_F(INFO, "Cound not find function %s\n", sSymbol);
+		DLOG_F(INFO, "could not find function %s", sSymbol);
 	}
 	else {
 		pOldFunc = *(uintptr_t*)pFunctionPtr;
-		LOG_F(INFO, "Found %s at $p\n", sSymbol, pFunctionPtr);
+		DLOG_F(INFO, "found %s at %p", sSymbol, pFunctionPtr);
 	}
 }
 
@@ -65,7 +65,7 @@ void IATHook::Init(HMODULE hModule, void * pHook, uintptr_t pFunc)
 	pFunctionPtr = pFunc;
 
 	pOldFunc = *(uintptr_t*)pFunctionPtr;
-	LOG_F(INFO, "Manually set pointer to %p\n", pFunctionPtr);
+	DLOG_F(INFO, "manually set pointer to %p", pFunctionPtr);
 }
 
 //stole this off the interwebz :D
@@ -82,7 +82,7 @@ void** IATHook::FindInIAT(const char* sFunction, HMODULE hModule, Console * con)
 
 	if (img_dos_headers->e_magic != IMAGE_DOS_SIGNATURE)
 	{
-		LOG_F(INFO, "ERROR: e_magic is not a valid DOS signature\n");
+		DLOG_F(INFO, "ERROR: e_magic is not a valid DOS signature");
 	}
 		
 
@@ -94,7 +94,8 @@ void** IATHook::FindInIAT(const char* sFunction, HMODULE hModule, Console * con)
 			const intptr_t nmod_func_name = (intptr_t)mod_func_name;
 			if (nmod_func_name >= 0)
 			{
-				LOG_F(INFO, "Read function %s\n", mod_func_name);
+				// Extremely noisy in debug logs; keep disabled unless needed.
+				// DLOG_F(INFO, "Read function %s", mod_func_name);
 				if (!::strcmp(sFunction, mod_func_name)) 
 				{
 					return func_idx + (void**)(iid->FirstThunk + (size_t)hModule);
@@ -108,18 +109,24 @@ void** IATHook::FindInIAT(const char* sFunction, HMODULE hModule, Console * con)
 
 bool IATHook::Hook()
 {
+	if (!pFunctionPtr)
+		return false;
+	DWORD dwOld;
 	if (!VirtualProtect((void*)this->pFunctionPtr, sizeof(uintptr_t), PAGE_EXECUTE_READWRITE, &this->dwOldPrt))
 		return false;
 	*(uintptr_t*)pFunctionPtr = (uintptr_t)pHook;
-	VirtualProtect((void*)this->pFunctionPtr, sizeof(uintptr_t), dwOldPrt, nullptr);
+	VirtualProtect((void*)this->pFunctionPtr, sizeof(uintptr_t), dwOldPrt, &dwOld);
 	return true;
 }
 
 bool IATHook::Unload()
 {
+	if (!pFunctionPtr)
+		return false;
+	DWORD dwOld;
 	if (!VirtualProtect((void*)this->pFunctionPtr, sizeof(uintptr_t), PAGE_EXECUTE_READWRITE, &this->dwOldPrt))
 		return false;
 	*(uintptr_t*)pFunctionPtr = pOldFunc;
-	VirtualProtect((void*)this->pFunctionPtr, sizeof(uintptr_t), dwOldPrt, nullptr);
+	VirtualProtect((void*)this->pFunctionPtr, sizeof(uintptr_t), dwOldPrt, &dwOld);
 	return true;
 }

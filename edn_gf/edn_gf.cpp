@@ -6,10 +6,9 @@
 #include "FPacketSender.h"
 #include "Interface.h"
 #include "NCWnd.h"
+#ifdef _DEBUG
 #include "UGFBoss.h"
-
-// Function to exit the game
-_RequestExit RequestExit;
+#endif
 
 // Main thread for our patches
 DWORD WINAPI EdnGfThread(HMODULE hModule) 
@@ -18,21 +17,23 @@ DWORD WINAPI EdnGfThread(HMODULE hModule)
 	// Activate UI
 	Interface ui = Interface();
 
-	// Wait for GF.dll to be loaded
+	// Wait for GF.dll to be loaded.
 	uintptr_t moduleBase = (uintptr_t)GetModuleHandle(L"GF.dll");
 	while (moduleBase == NULL) {
 		Sleep(5);
 		moduleBase = (uintptr_t)GetModuleHandle(L"GF.dll");
 	}
 
-	// Give GF.dll time to finish initialization before we touch its internals
+	// Give GF.dll time to finish initialization before touching internals.
 	Sleep(500);
 
 	// Get the packet sender
 	LoadPacketSender(moduleBase);
 
-	// Wait for NWindow.dll to be loaded
+	// Get module for nwindow
 	uintptr_t nwin = (uintptr_t)GetModuleHandle(L"NWindow.dll");
+
+	// Wait until its loaded
 	while (nwin == NULL) {
 		Sleep(5);
 		nwin = (uintptr_t)GetModuleHandle(L"NWindow.dll");
@@ -41,24 +42,15 @@ DWORD WINAPI EdnGfThread(HMODULE hModule)
 	// Hook NWindow.dll External AddEventInternal
 	HookAddEventInternal(nwin);
 
-	// cleanup & eject
+	// Hook packet logging only in debug builds.
 #ifdef _DEBUG
-
-	// Hook packets
 	HookOnPacket(moduleBase);
-
-	// Main loop
-	while (ui.bRunning) {
-		Sleep(5);
-	}
-
 #endif
 
-	ui.~Interface();
+	// Hooks stay active for the process lifetime.
+	// Block this thread indefinitely; the game process exiting is what
+	// cleans everything up. There is no mid-session unload.
+	Sleep(INFINITE);
 
-	UnHookAddEventInternal();
-	
-	FreeLibraryAndExitThread(hModule, 0);
-	
 	return 0;
 }

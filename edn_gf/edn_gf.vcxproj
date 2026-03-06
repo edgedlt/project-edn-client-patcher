@@ -229,10 +229,8 @@
     <ClInclude Include="IATHook.h" />
     <ClInclude Include="Interface.h" />
     <ClInclude Include="loguru.hpp" />
-    <ClInclude Include="mem.h" />
-    <ClInclude Include="Memory.h" />
+    <ClInclude Include="ModuleDir.h" />
     <ClInclude Include="NCWnd.h" />
-    <ClInclude Include="proc.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="UGFBoss.h" />
@@ -245,10 +243,8 @@
     <ClCompile Include="IATHook.cpp" />
     <ClCompile Include="Interface.cpp" />
     <ClCompile Include="loguru.cpp" />
-    <ClCompile Include="mem.cpp" />
-    <ClCompile Include="Memory.cpp" />
+    <ClCompile Include="ModuleDir.cpp" />
     <ClCompile Include="NCWnd.cpp" />
-    <ClCompile Include="proc.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Inject|Win32'">Create</PrecompiledHeader>

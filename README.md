@@ -1,31 +1,64 @@
-# client patcher
+# project-edn-client-patcher
 
-This is a very basic client patcher program. In the future it could be used to add in new features and mods to the game binary.
+Runtime client hook DLL (`edn_gf.dll`) for Exteel.
 
-### project state
+## Attribution
 
-This code is provided as-is, with no warranty. It is not being actively maintained. If you have any questions, please
-reach out to me and I will do my best to answer them if I have time.
+Original project: **project-edn-client-patcher** by **jakefahrbach**
 
-If you are interested in maintaining this project, please let me know.
+## What It Does
 
-## usage
+- Loads inside the game process via `GF.dll` import patching.
+- Hooks login flow (`NWindow.dll` `AddEventInternal`) and sends direct login packet.
+- In debug builds, hooks packet receive path (`BattleManager::OnPacket`) with structured packet logging and filters.
 
-Build the project in either debug or release for x86. The resulting binary, edn_gf.dll, should be placed into the games system directory and patched into the import table of GF.dll using a tool like iidking. 
+## Build And Install
 
-The only difference at the moment is that the debug version will keep the console open.
+1. Build `edn_gf` as **x86** (`Debug` or `Release`).
+2. Copy `edn_gf.dll` to `Exteel (US)/System/`.
+3. Patch `GF.dll` import table so it imports `edn_gf.dll` (for example with IIDKing or the integrated `rexteel patch` flow).
 
-A prebuilt release version and the patching tool are available under the project-edn-tools repository.
+## Debug vs Release
 
-## legal
-Every effort has been made to comply with all laws and regulations. This project is an original creation, 
-distributed free of charge. 
+- `Debug`:
+  - Enables packet hook/logging.
+  - Writes log file to `System/edn_gf.log`.
+  - Falls back to console output only if file logging cannot be opened.
+- `Release`:
+  - Patches silently (no packet logger output by default).
+  - Keeps runtime hooks required for patch behavior.
 
-It contains no copyrighted files or code. It does not function without the game files, which are NOT included. 
-In order for it to function, the user must legally acquire these files.
+## Log Config (Debug)
 
-Donations are not accepted. 
+Config file path: `Exteel (US)/System/edn_gf.ini`
 
-The sole intent of this project is to provide players a chance to enjoy a long dead game from their childhood. 
+Use the `[log]` section to control log file behavior:
+- `log_mode` — `append` (default) keeps previous session logs; `replace` starts fresh each session.
 
-If there are any legal concerns, please reach out to me on github and I will be happy to comply in any way required.
+## Packet Logging Config (Debug)
+
+Use the `[packets]` section. Keys:
+- `enabled`
+- `profile` (comma-separated)
+- `decode_known`
+- `log_hex`
+- `log_unknown`
+- `include`
+- `exclude`
+
+Supported profiles:
+- `all`
+- `lobby`
+- `matchflow`
+- `movement`
+- `gunplay`
+- `skills`
+- `combat`
+- `minimal`
+
+Example config is included at `edn_gf/edn_gf.ini.example`.
+
+## Legal
+
+This project is distributed as-is and requires user-provided game files.
+No game assets are included.

@@ -1,0 +1,39 @@
+; edn_gf config
+; Place next to edn_gf.dll (typically Exteel (US)/System/edn_gf.ini)
+
+; Log file settings (debug builds only).
+;   log_mode = append   - keep previous log data (default)
+;   log_mode = replace  - start a fresh log each session
+
+[log]
+
+log_mode=append
+
+; Packet logger profiles:
+;
+;   all, lobby, matchflow, movement, gunplay, skills, combat, minimal
+; Multiple templates can be active at once via comma/semicolon/space separators.
+; Example: profile=movement,gunplay,skills
+;     all       = every known + unknown packet
+;     lobby     = auth/lobby/room/chat/inventory/shop/factory/system traffic
+;     matchflow = in-match state flow (spawn/score/base/wave/end), low combat detail
+;     movement  = movement-focused packets (player + NPC motion/sync)
+;     gunplay   = weapon combat packets (aim/attack/hit/hp/overheat/projectile)
+;     skills    = skill/cast/code/effect packets
+;     combat    = full in-match combat telemetry (battle + movement + gunplay + skills + NPC)
+;     minimal   = system-level low-noise baseline
+;
+; include/exclude accept comma-separated decimal, hex, or packet names.
+; include is always applied first
+; exclude overrides profile/include
+; Example: include=0x86,0x87,S_CAST_SKILL
+
+[packets]
+
+enabled=1
+profile=combat
+decode_known=1
+log_hex=1
+log_unknown=1
+include=
+exclude=

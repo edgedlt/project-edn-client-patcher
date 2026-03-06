@@ -1,123 +1,136 @@
 #include "stdafx.h"
 #include "Interface.h"
-#include "FPacketSender.h"
-#include "NCWnd.h"
-#include "edn_gf.h"
+#include "ModuleDir.h"
 
 // Externals
 Interface * g_pFace;
 
-HWND window;
-bool initialized = false;
-
-static char userEntry[20];
-static char passEntry[20];
-
-// Input handler
-bool Interface::HandleInput()
+#ifdef _DEBUG
+namespace
 {
-	if (GetAsyncKeyState(VK_F6) & 1)
+	// Read log_mode from edn_gf.ini.  Returns loguru::Truncate for "replace",
+	// loguru::Append for "append" (or when the file/key is absent).
+	loguru::FileMode ReadLogModeFromIni(const char* moduleDir) noexcept
 	{
-		Unload();
+		char configPath[MAX_PATH];
+		_snprintf_s(configPath, MAX_PATH, _TRUNCATE, "%s\\edn_gf.ini", moduleDir);
+
+		FILE* f = nullptr;
+		if (fopen_s(&f, configPath, "r") != 0 || f == nullptr) {
+			return loguru::Append;
+		}
+
+		loguru::FileMode mode = loguru::Append;
+		char line[256];
+		bool inLogSection = false;
+		while (fgets(line, sizeof(line), f)) {
+			// Skip comments and blank lines.
+			const char* p = line;
+			while (*p == ' ' || *p == '\t') ++p;
+			if (*p == '\0' || *p == '\n' || *p == '\r' || *p == ';' || *p == '#') {
+				continue;
+			}
+
+			// Section header?
+			if (*p == '[') {
+				inLogSection = (_strnicmp(p, "[log]", 5) == 0);
+				continue;
+			}
+
+			if (!inLogSection) {
+				continue;
+			}
+
+			if (_strnicmp(p, "log_mode", 8) == 0) {
+				const char* eq = strchr(p, '=');
+				if (eq) {
+					++eq;
+					while (*eq == ' ' || *eq == '\t') ++eq;
+					if (_strnicmp(eq, "replace", 7) == 0) {
+						mode = loguru::Truncate;
+					}
+				}
+			}
+		}
+		fclose(f);
+		return mode;
+	}
+
+	bool InitFileLogging() noexcept
+	{
+		char moduleDir[MAX_PATH];
+		char logPath[MAX_PATH];
+
+		if (GetDllDirectory(moduleDir, MAX_PATH)) {
+			loguru::FileMode mode = ReadLogModeFromIni(moduleDir);
+			_snprintf_s(logPath, MAX_PATH, _TRUNCATE, "%s\\edn_gf.log", moduleDir);
+			if (loguru::add_file(logPath, mode, loguru::Verbosity_INFO)) {
+				LOG_F(INFO, "client file logging enabled: %s (mode=%s)",
+					logPath, mode == loguru::Truncate ? "replace" : "append");
+				return true;
+			}
+		}
+
+		if (loguru::add_file("edn_gf.log", loguru::Append, loguru::Verbosity_INFO)) {
+			LOG_F(WARNING, "client file logging fallback enabled: edn_gf.log");
+			return true;
+		}
+
 		return false;
 	}
-	else if (GetAsyncKeyState(VK_F7) & 1)
-	{
-		//GPacketSender.SendCLog(GPacketSender.pThis, (wchar_t*)message);
-	}
-	else if (GetAsyncKeyState(VK_F8) & 1)
-	{
-		//RequestExit(0);
-	}
-	else if (GetAsyncKeyState(VK_F9) & 1)
-	{
-		//GPacketSender.SendCConnectClient(GPacketSender.pThis, &packet);
-	}
-
-	return true;
 }
 
-void DuplicateToConsole(void* user_data, const loguru::Message& message)
+void DuplicateToConsole(void* user_data, const loguru::Message& message) noexcept
 {
 	Console* console = reinterpret_cast<Console*>(user_data);
 	console->WriteF("%s%s", message.prefix, message.message);
 }
+#endif
 
 // Constructor
 Interface::Interface()
 {
+#ifdef _DEBUG
+	// Keep debug logs compact and readable.
+	loguru::g_internal_verbosity = loguru::Verbosity_OFF;
+	loguru::g_preamble_header = false;
+	loguru::g_preamble_uptime = false;
+	loguru::g_preamble_thread = false;
+	loguru::g_preamble_file = false;
+	loguru::g_preamble_verbose = false;
+	loguru::g_preamble_pipe = false;
+
+	fileLoggingEnabled = InitFileLogging();
+	if (!fileLoggingEnabled && con.Enable()) {
+		loguru::add_callback("console_logger",
+			DuplicateToConsole, &con, loguru::Verbosity_MAX);
+	}
+#else
+	// Release builds should patch silently without verbose runtime logging.
+	loguru::g_stderr_verbosity = loguru::Verbosity_OFF;
+	fileLoggingEnabled = false;
+#endif
+
 	Init();
-
-	loguru::add_file("edn.log", loguru::Append, loguru::Verbosity_INFO);
-	loguru::add_callback("console_logger",
-		DuplicateToConsole, &con, loguru::Verbosity_MAX);
 }
 
-// Clean on shutdown
-Interface::~Interface()
+Interface::~Interface() noexcept
 {
 }
 
-// Setup basic settings
-void Interface::Init()
+void Interface::Init() noexcept
 {
-	con.Clear();
-	con.SetCursorPos(COORD{ 0,0 });
+	if (con.IsEnabled()) {
+		con.Clear();
+		con.SetCursorPos(COORD{ 0,0 });
+	}
 	PrintIntro();
 	g_pFace = this;
-	bRunning = true;
 }
 
-
-void Interface::Unload()
+void Interface::PrintIntro() noexcept
 {
-	con.~Console();
-	bRunning = false;
-}
-
-// Atempts a login
-void Interface::TryLogin()
-{
-	// Create packet definition
-	CConnectClient_packet packet;
-
-	// Convert to wchar_t
-	const wchar_t* pUser;
-	const wchar_t* pPass;
-
-	// Calculate size
-	int szUser = MultiByteToWideChar(CP_ACP, 0, userEntry, -1, NULL, 0);
-	int szPass = MultiByteToWideChar(CP_ACP, 0, passEntry, -1, NULL, 0);
-
-	// Allocate memory
-	pUser = new wchar_t[szUser];
-	pPass = new wchar_t[szPass];
-	MultiByteToWideChar(CP_ACP, 0, userEntry, -1, (LPWSTR)pUser, szUser);
-	MultiByteToWideChar(CP_ACP, 0, passEntry, -1, (LPWSTR)pPass, szPass);
-
-	// packet data
-	packet.userName = (wchar_t*)pUser;
-	packet.passWord = (wchar_t*)pPass;
-
-	packet.userNameSize = szUser*2;
-	packet.passWordSize = szPass*2;
-
-	packet.unknownA = 0;
-	packet.unknownB = 0;
-	packet.unknownC = 0;
-
-	// Send packet
-	GPacketSender.SendCConnectClient(GPacketSender.pThis, &packet);
-
-	// Free up memory
-	delete[] pUser;
-	delete[] pPass;
-}
-
-void Interface::PrintIntro()
-{
-	// Console info
-	LOG_F(INFO, "[===================================================================]\n");
-	LOG_F(INFO, "Activating Exteel.Net client patches...\n");
-	LOG_F(INFO, "[===================================================================]\n");
+#ifdef _DEBUG
+	LOG_F(INFO, "edn_gf patch active (debug)");
+#endif
 }

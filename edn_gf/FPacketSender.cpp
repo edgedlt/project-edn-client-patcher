@@ -10,12 +10,12 @@ void LoadPacketSender(uintptr_t moduleBase)
 {
 	const UINT offset = 0x1e7a0;
 
-	// Console info
-	LOG_F(INFO, "[===================================================================]\n");
-	LOG_F(INFO, "Aquiring handle to GPacketSender...\n");
-	LOG_F(INFO, "[===================================================================]\n");
+	DLOG_F(INFO, "acquiring GPacketSender handle");
 
 	uintptr_t packetSenderBase = moduleBase + offset;
+
+	// Resolve the global FPacketSender instance pointer (module-relative).
+	GPacketSender.pThis = (void*)(moduleBase + 0x1a67c0);
 
 	// Get the packet sender functions from the offset
 
@@ -25,8 +25,5 @@ void LoadPacketSender(uintptr_t moduleBase)
 	// Send_C_CONNECT_CLIENT
 	GPacketSender.SendCConnectClient = (FPacketSender::_SendCConnectClient)(packetSenderBase + 0x3C3F0);
 
-	// Console info
-	LOG_F(INFO, "[===================================================================]\n");
-	LOG_F(INFO, "Done!\n");
-	LOG_F(INFO, "[===================================================================]\n");
+	DLOG_F(INFO, "GPacketSender ready");
 }

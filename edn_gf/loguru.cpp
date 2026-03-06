@@ -1,5 +1,3 @@
-#include "stdafx.h"
-
 #ifndef _WIN32
 // Disable all warnings from gcc/clang:
 #pragma GCC diagnostic push
@@ -819,7 +817,7 @@ namespace loguru
 #endif
 
 		if (mode == FileMode::Append) {
-			fprintf(file, "\n\n\n\n\n");
+			fprintf(file, "\n");
 		}
 		if (!s_arguments.empty()) {
 			fprintf(file, "arguments: %s\n", s_arguments.c_str());
@@ -827,7 +825,6 @@ namespace loguru
 		if (strlen(s_current_dir) != 0) {
 			fprintf(file, "Current dir: %s\n", s_current_dir);
 		}
-		fprintf(file, "File verbosity level: %d\n", verbosity);
 		if (g_preamble_header) {
 			char preamble_explain[LOGURU_PREAMBLE_WIDTH];
 			print_preamble_header(preamble_explain, sizeof(preamble_explain));
@@ -1073,11 +1070,14 @@ namespace loguru
 	{
 		CHECK_NE_F(length, 0u, "Zero length buffer in get_thread_name");
 		CHECK_NOTNULL_F(buffer, "nullptr in get_thread_name");
+		const size_t length_size_t = (length > static_cast<unsigned long long>(SIZE_MAX))
+			? SIZE_MAX
+			: static_cast<size_t>(length);
 
 #if LOGURU_PTLS_NAMES
 		(void)pthread_once(&s_pthread_key_once, make_pthread_key_name);
 		if (const char* name = static_cast<const char*>(pthread_getspecific(s_pthread_key_name))) {
-			snprintf(buffer, length, "%s", name);
+			snprintf(buffer, length_size_t, "%s", name);
 		}
 		else {
 			buffer[0] = 0;
@@ -1086,9 +1086,9 @@ namespace loguru
 		// Ask the OS about the thread name.
 		// This is what we *want* to do on all platforms, but
 		// only some platforms support it (currently).
-		pthread_getname_np(pthread_self(), buffer, length);
+		pthread_getname_np(pthread_self(), buffer, length_size_t);
 #elif LOGURU_WINTHREADS
-		snprintf(buffer, (size_t)length, "%s", thread_name_buffer());
+		snprintf(buffer, length_size_t, "%s", thread_name_buffer());
 #else
 		// Thread names unsupported
 		buffer[0] = 0;
@@ -1115,10 +1115,10 @@ namespace loguru
 #endif
 
 			if (right_align_hex_id) {
-				snprintf(buffer, length, "%*X", static_cast<int>(length - 1), static_cast<unsigned>(thread_id));
+				snprintf(buffer, length_size_t, "%*X", static_cast<int>(length - 1), static_cast<unsigned>(thread_id));
 			}
 			else {
-				snprintf(buffer, length, "%X", static_cast<unsigned>(thread_id));
+				snprintf(buffer, length_size_t, "%X", static_cast<unsigned>(thread_id));
 			}
 		}
 	}
@@ -1514,7 +1514,7 @@ namespace loguru
 	}
 
 	LogScopeRAII::LogScopeRAII(Verbosity verbosity, const char* file, unsigned line, const char* format, ...)
-		: _verbosity(verbosity), _file(file), _line(line)
+		: _verbosity(verbosity), _file(file), _line(line), _indent_stderr(false), _start_time_ns(0), _name()
 	{
 		if (verbosity <= current_verbosity_cutoff()) {
 			std::lock_guard<std::recursive_mutex> lock(s_mutex);
@@ -1541,7 +1541,7 @@ namespace loguru
 		}
 	}
 
-	LogScopeRAII::~LogScopeRAII()
+	LogScopeRAII::~LogScopeRAII() noexcept
 	{
 		if (_file) {
 			std::lock_guard<std::recursive_mutex> lock(s_mutex);

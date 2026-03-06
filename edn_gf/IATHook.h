@@ -7,7 +7,7 @@ public:
 	IATHook(Console * con);
 	IATHook(char* sModule, void* pHook, char* sSymbol);
 	IATHook(HMODULE hModule, void* pHook, char* sSymbol);
-	~IATHook();
+	~IATHook() noexcept;
 	void SetConsole(Console * con);
 	void Init(char* sModule, void* pHook, char* sSymbol);
 	void Init(HMODULE hModule, void* pHook, char* sSymbol);
@@ -19,11 +19,11 @@ public:
 
 private:
 	Console * con = nullptr;
-	DWORD dwOldPrt;
-	HMODULE hModule;
-	char* sModule;
-	char* sSymbol;
-	void* pHook;
-	uintptr_t pFunctionPtr, pOldFunc;
+	DWORD dwOldPrt = 0;
+	HMODULE hModule = NULL;
+	char* sModule = nullptr;
+	char* sSymbol = nullptr;
+	void* pHook = nullptr;
+	uintptr_t pFunctionPtr = 0;
+	uintptr_t pOldFunc = 0;
 };
-

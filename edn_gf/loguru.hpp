@@ -644,14 +644,21 @@ namespace loguru
 	class LOGURU_EXPORT LogScopeRAII
 	{
 	public:
-		LogScopeRAII() : _file(nullptr) {} // No logging
+		LogScopeRAII() noexcept
+			: _verbosity(Verbosity_OFF)
+			, _file(nullptr)
+			, _line(0)
+			, _indent_stderr(false)
+			, _start_time_ns(0)
+			, _name()
+		{} // No logging
 		LogScopeRAII(Verbosity verbosity, const char* file, unsigned line, LOGURU_FORMAT_STRING_TYPE format, ...) LOGURU_PRINTF_LIKE(5, 6);
-		~LogScopeRAII();
+		~LogScopeRAII() noexcept;
 
 #if defined(_MSC_VER) && _MSC_VER > 1800
 		// older MSVC default move ctors close the scope on move. See
 		// issue #43
-		LogScopeRAII(LogScopeRAII&& other)
+		LogScopeRAII(LogScopeRAII&& other) noexcept
 			: _verbosity(other._verbosity)
 			, _file(other._file)
 			, _line(other._line)
@@ -666,7 +673,7 @@ namespace loguru
 			}
 		}
 #else
-		LogScopeRAII(LogScopeRAII&&) = default;
+		LogScopeRAII(LogScopeRAII&&) noexcept = default;
 #endif
 
 	private:
@@ -674,12 +681,12 @@ namespace loguru
 		LogScopeRAII& operator=(const LogScopeRAII&) = delete;
 		void operator=(LogScopeRAII&&) = delete;
 
-		Verbosity   _verbosity;
-		const char* _file; // Set to null if we are disabled due to verbosity
-		unsigned    _line;
-		bool        _indent_stderr; // Did we?
-		long long   _start_time_ns;
-		char        _name[LOGURU_SCOPE_TEXT_SIZE];
+		Verbosity   _verbosity = Verbosity_OFF;
+		const char* _file = nullptr; // Set to null if we are disabled due to verbosity
+		unsigned    _line = 0;
+		bool        _indent_stderr = false; // Did we?
+		long long   _start_time_ns = 0;
+		char        _name[LOGURU_SCOPE_TEXT_SIZE] = {};
 	};
 
 	// Marked as 'noreturn' for the benefit of the static analyzer and optimizer.
